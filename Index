@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Daybook</title>
+<meta name="theme-color" content="#3D6B63" />
+<meta name="description" content="A personal dashboard for habits, goals, budget, supplements, and weight." />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Daybook" />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #E8E4D8;
+    font-family: 'Inter', sans-serif;
+  }
+
+  :root {
+    --paper: #FFFDF8;
+    --bg: #E8E4D8;
+    --ink: #24231F;
+    --teal: #3D6B63;
+    --mustard: #C99A3B;
+    --coral: #B5533C;
+    --line: #D2CBB8;
+  }
+
+  .dash-root {
+    color: var(--ink);
+    background: var(--bg);
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 24px 24px;
+    min-height: 100vh;
+    padding: 20px;
+    padding-top: max(20px, env(safe-area-inset-top));
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+    max-width: 780px;
+    margin: 0 auto;
+  }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  .loading { display:flex; align-items:center; justify-content:center; min-height: 100vh; }
+
+  .masthead {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+  }
+  .brand {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 28px;
+    letter-spacing: -0.02em;
+  }
+  .date { font-size: 12px; color: var(--ink); opacity: 0.65; margin-top: 2px; }
+  .masthead-rings { display: flex; gap: 16px; }
+  .mini-ring { position: relative; display:flex; align-items:center; justify-content:center; }
+  .mini-ring span { position:absolute; font-size: 8px; opacity: 0.6; bottom: -14px; white-space: nowrap; }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+    overflow-x: auto;
+  }
+  .tab {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 14px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--ink);
+    opacity: 0.55;
+    cursor: pointer;
+    transition: opacity .15s ease, border-color .15s ease;
+    white-space: nowrap;
+  }
+  .tab:hover { opacity: 0.85; }
+  .tab.active { opacity: 1; border-bottom-color: var(--teal); }
+
+  .panel {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 18px 16px;
+  }
+  .panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 14px;
+  }
+  .panel-head h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 17px;
+    margin: 0;
+  }
+  .eyebrow { font-size: 11px; opacity: 0.55; }
+
+  /* Habits */
+  .habit-grid-head, .habit-row {
+    display: grid;
+    grid-template-columns: 1fr repeat(7, 26px) 44px;
+    align-items: center;
+    gap: 6px;
+  }
+  .habit-grid-head { font-size: 10px; opacity: 0.5; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .04em; }
+  .habit-row { padding: 5px 0; border-top: 1px dashed var(--line); }
+  .hg-day { display:flex; align-items:center; justify-content:center; }
+  .hg-streak { text-align: right; font-size: 11px; opacity: 0.7; }
+  .row-label { display:flex; align-items:center; justify-content:space-between; font-size: 13px; padding-right: 6px; }
+
+  .punch {
+    width: 22px; height: 22px;
+    border-radius: 5px;
+    border: 1.5px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    cursor: pointer;
+    transition: background .12s ease, border-color .12s ease, transform .08s ease;
+  }
+  .punch:active { transform: scale(0.9); }
+
+  .ghost-x {
+    background: none; border: none; color: var(--ink); opacity: 0.35;
+    font-size: 12px; cursor: pointer; padding: 2px 4px;
+  }
+  .ghost-x:hover { opacity: 0.8; color: var(--coral); }
+
+  .add-row { display:flex; gap: 8px; margin-top: 14px; align-items:center; flex-wrap: wrap; }
+  .field {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    padding: 7px 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--paper);
+    color: var(--ink);
+    flex: 1;
+    min-width: 100px;
+  }
+  .field:focus { outline: 2px solid var(--teal); outline-offset: 1px; }
+  .select { flex: none; width: 70px; }
+  .btn {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 14px;
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .btn:hover { background: var(--teal); }
+  .btn.small { padding: 5px 9px; font-size: 12px; }
+
+  /* Goals */
+  .goal-list { display: flex; flex-direction: column; gap: 14px; }
+  .goal-card { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+  .goal-top { display:flex; justify-content: space-between; align-items:center; margin-bottom: 8px; }
+  .goal-name { font-weight: 600; font-size: 14px; }
+  .goal-meta { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+  .bar-track { height: 7px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--mustard); border-radius: 4px; transition: width .3s ease; }
+  .goal-actions { display:flex; gap: 6px; margin-top: 10px; align-items:center; }
+
+  /* Budget */
+  .budget-summary { display:flex; gap: 20px; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px dashed var(--line); }
+  .sum-label { font-size: 10px; opacity: 0.55; text-transform: uppercase; letter-spacing: .04em; }
+  .sum-value { font-size: 18px; font-weight: 500; margin-top: 2px; }
+  .sum-value.alert, .cat-nums.alert { color: var(--coral); }
+  .cat-list { display:flex; flex-direction: column; gap: 10px; }
+  .cat-row { display: grid; grid-template-columns: 110px 1fr 110px auto; gap: 10px; align-items:center; }
+  .cat-name { font-size: 13px; font-weight: 500; }
+  .cat-bar-track { height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+  .cat-bar-fill { height: 100%; background: var(--teal); }
+  .cat-bar-fill.over { background: var(--coral); }
+  .cat-nums { font-size: 12px; text-align: right; }
+  .cat-actions { display:flex; gap: 4px; align-items:center; }
+
+  /* Supplements */
+  .supp-groups { display:flex; gap: 24px; flex-wrap: wrap; }
+  .supp-group { flex: 1; min-width: 180px; }
+  .supp-group-label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; opacity: 0.55; margin-bottom: 8px; }
+  .supp-row { display:flex; align-items:center; gap: 10px; padding: 6px 0; border-top: 1px dashed var(--line); }
+  .supp-name { font-size: 13px; flex: 1; }
+  .supp-name.taken { text-decoration: line-through; opacity: 0.45; }
+  .empty { font-size: 12px; opacity: 0.4; font-style: italic; }
+
+  /* Weight */
+  .weight-list { display:flex; flex-direction: column; margin-top: 12px; }
+  .weight-row {
+    display:grid; grid-template-columns: 60px 1fr 24px;
+    align-items:center; font-size: 12px; padding: 5px 0;
+    border-top: 1px dashed var(--line);
+  }
+
+  /* Summary */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+  .summary-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .summary-title { font-family: 'Space Grotesk', sans-serif; font-weight: 500; font-size: 13px; }
+  .summary-detail { font-size: 11px; opacity: 0.65; margin-top: 2px; }
+
+  @media (max-width: 480px) {
+    .dash-root { padding: 14px; }
+    .habit-grid-head, .habit-row { grid-template-columns: 1fr repeat(7, 20px) 36px; }
+    .punch { width: 18px; height: 18px; }
+    .cat-row { grid-template-columns: 1fr; gap: 4px; }
+    .summary-grid { grid-template-columns: 1fr; }
+    .brand { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useCallback } = React;
+
+const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
+
+const SEED = {
+  habits: [
+    { id: "h1", name: "Exercise", days: [true, true, false, true, false, false, false] },
+    { id: "h2", name: "Read 20 min", days: [true, false, true, true, true, false, false] },
+    { id: "h3", name: "Meditate", days: [false, true, true, false, true, false, false] },
+    { id: "h4", name: "Drink water (8 cups)", days: [true, true, true, true, false, false, false] },
+  ],
+  goals: [
+    { id: "g1", name: "Save emergency fund", current: 2400, target: 6000, unit: "$", due: "Dec 2026" },
+    { id: "g2", name: "Run a 10K", current: 6, target: 10, unit: "km", due: "Oct 2026" },
+    { id: "g3", name: "Finish Spanish course", current: 18, target: 40, unit: "lessons", due: "Jan 2027" },
+  ],
+  budget: {
+    income: 4200,
+    categories: [
+      { id: "b1", name: "Rent", budget: 1400, spent: 1400 },
+      { id: "b2", name: "Groceries", budget: 450, spent: 312 },
+      { id: "b3", name: "Transport", budget: 180, spent: 205 },
+      { id: "b4", name: "Fun money", budget: 250, spent: 140 },
+      { id: "b5", name: "Subscriptions", budget: 60, spent: 58 },
+    ],
+  },
+  supplements: [
+    { id: "s1", name: "Vitamin D", time: "AM", taken: true },
+    { id: "s2", name: "Magnesium", time: "PM", taken: false },
+    { id: "s3", name: "Omega-3", time: "AM", taken: true },
+    { id: "s4", name: "Creatine", time: "AM", taken: false },
+  ],
+  weight: {
+    unit: "lb",
+    goal: 175,
+    entries: [
+      { id: "w1", date: "2026-08-05", value: 183.2 },
+      { id: "w2", date: "2026-08-06", value: 183.0 },
+      { id: "w3", date: "2026-08-08", value: 182.6 },
+      { id: "w4", date: "2026-08-09", value: 182.4 },
+      { id: "w5", date: "2026-08-11", value: 182.0 },
+      { id: "w6", date: "2026-08-12", value: 181.8 },
+      { id: "w7", date: "2026-08-14", value: 181.5 },
+      { id: "w8", date: "2026-08-15", value: 181.2 },
+      { id: "w9", date: "2026-08-17", value: 180.8 },
+      { id: "w10", date: "2026-08-18", value: 180.5 },
+    ],
+  },
+};
+
+const TABS = [
+  { key: "summary", label: "Summary" },
+  { key: "habits", label: "Habits" },
+  { key: "goals", label: "Goals" },
+  { key: "budget", label: "Budget" },
+  { key: "supplements", label: "Supplements" },
+  { key: "weight", label: "Weight" },
+];
+
+const STORAGE_KEY = "dashboard-data";
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function saveData(data) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (e) {
+    // best effort — storage may be full or unavailable
+  }
+}
+
+function useDashboardData() {
+  const [data, setData] = useState(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    const existing = loadData();
+    if (existing) {
+      const merged = {
+        ...SEED,
+        ...existing,
+        budget: { ...SEED.budget, ...(existing.budget || {}) },
+        weight: { ...SEED.weight, ...(existing.weight || {}) },
+      };
+      setData(merged);
+      if (!existing.weight) saveData(merged);
+    } else {
+      setData(SEED);
+      saveData(SEED);
+    }
+    setLoaded(true);
+  }, []);
+
+  const persist = useCallback((next) => {
+    setData(next);
+    saveData(next);
+  }, []);
+
+  return { data, loaded, persist };
+}
+
+function Ring({ pct, size = 64, stroke = 7, color }) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const off = c - (Math.min(pct, 1) * c);
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--line)" strokeWidth={stroke} />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke={color || "var(--teal)"}
+        strokeWidth={stroke}
+        strokeDasharray={c}
+        strokeDashoffset={off}
+        strokeLinecap="round"
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        style={{ transition: "stroke-dashoffset .4s ease" }}
+      />
+    </svg>
+  );
+}
+
+function Punch({ checked, onClick, tone }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={checked}
+      className="punch"
+      style={{
+        background: checked ? (tone || "var(--teal)") : "var(--paper)",
+        borderColor: checked ? (tone || "var(--teal)") : "var(--line)",
+      }}
+    >
+      {checked && (
+        <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+          <path d="M1 4.5L4 7.5L10 1.5" stroke="var(--paper)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
+function Field({ value, onChange, placeholder, width, type = "text" }) {
+  return (
+    <input
+      className="field"
+      type={type}
+      value={value}
+      placeholder={placeholder}
+      style={{ width }}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
+}
+
+function HabitsSection({ habits, persist, all }) {
+  const [name, setName] = useState("");
+
+  const toggleDay = (id, idx) => {
+    const next = habits.map((h) =>
+      h.id === id ? { ...h, days: h.days.map((d, i) => (i === idx ? !d : d)) } : h
+    );
+    persist({ ...all, habits: next });
+  };
+
+  const addHabit = () => {
+    if (!name.trim()) return;
+    const next = [...habits, { id: "h" + Date.now(), name: name.trim(), days: Array(7).fill(false) }];
+    persist({ ...all, habits: next });
+    setName("");
+  };
+
+  const removeHabit = (id) => persist({ ...all, habits: habits.filter((h) => h.id !== id) });
+
+  const streak = (days) => {
+    let s = 0;
+    for (let i = days.length - 1; i >= 0; i--) {
+      if (days[i]) s++;
+      else break;
+    }
+    return s;
+  };
+
+  return (
+    <div className="panel">
+      <div className="panel-head">
+        <h2>This week's habits</h2>
+        <span className="eyebrow">tap a cell to log it</span>
+      </div>
+
+      <div className="habit-grid-head">
+        <div className="hg-name">Habit</div>
+        {DAYS.map((d, i) => (
+          <div className="hg-day" key={i}>{d}</div>
+        ))}
+        <div className="hg-streak">streak</div>
+      </div>
+
+      {habits.map((h) => (
+        <div className="habit-row" key={h.id}>
+          <div className="hg-name row-label">
+            {h.name}
+            <button className="ghost-x" onClick={() => removeHabit(h.id)} aria-label={`Remove ${h.name}`}>×</button>
+          </div>
+          {h.days.map((d, i) => (
+            <div className="hg-day" key={i}>
+              <Punch checked={d} onClick={() => toggleDay(h.id, i)} />
+            </div>
+          ))}
+          <div className="hg-streak mono">{streak(h.days)}d</div>
+        </div>
+      ))}
+
+      <div className="add-row">
+        <Field value={name} onChange={setName} placeholder="New habit, e.g. Stretch" />
+        <button className="btn" onClick={addHabit}>Add habit</button>
+      </div>
+    </div>
+  );
+}
+
+function GoalsSection({ goals, persist, all }) {
+  const [form, setForm] = useState({ name: "", current: "", target: "", unit: "", due: "" });
+
+  const bump = (id, delta) => {
+    const next = goals.map((g) =>
+      g.id === id ? { ...g, current: Math.max(0, +(g.current + delta).toFixed(2)) } : g
+    );
+    persist({ ...all, goals: next });
+  };
+
+  const removeGoal = (id) => persist({ ...all, goals: goals.filter((g) => g.id !== id) });
+
+  const addGoal = () => {
+    if (!form.name.trim() || !form.target) return;
+    const next = [
+      ...goals,
+      {
+        id: "g" + Date.now(),
+        name: form.name.trim(),
+        current: +form.current || 0,
+        target: +form.target,
+        unit: form.unit || "",
+        due: form.due || "—",
+      },
+    ];
+    persist({ ...all, goals: next });
+    setForm({ name: "", current: "", target: "", unit: "", due: "" });
+  };
+
+  return (
+    <div className="panel">
+      <div className="panel-head">
+        <h2>Goals in motion</h2>
+        <span className="eyebrow">nudge progress up or down</span>
+      </div>
+
+      <div className="goal-list">
+        {goals.map((g) => {
+          const pct = g.target > 0 ? Math.min(1, g.current / g.target) : 0;
+          return (
+            <div className="goal-card" key={g.id}>
+              <div className="goal-top">
+                <div>
+                  <div className="goal-name">{g.name}</div>
+                  <div className="goal-meta mono">{g.current}{g.unit} / {g.target}{g.unit} · due {g.due}</div>
+                </div>
+                <Ring pct={pct} color="var(--mustard)" />
+              </div>
+              <div className="bar-track">
+                <div className="bar-fill" style={{ width: `${pct * 100}%` }} />
+              </div>
+              <div className="goal-actions">
+                <button className="btn small" onClick={() => bump(g.id, -1)}>−1</button>
+                <button className="btn small" onClick={() => bump(g.id, 1)}>+1</button>
+                <button className="ghost-x" onClick={() => removeGoal(g.id)}>remove</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="add-row wrap">
+        <Field value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="Goal name" width="180px" />
+        <Field value={form.current} onChange={(v) => setForm({ ...form, current: v })} placeholder="Current" width="80px" />
+        <Field value={form.target} onChange={(v) => setForm({ ...form, target: v })} placeholder="Target" width="80px" />
+        <Field value={form.unit} onChange={(v) => setForm({ ...form, unit: v })} placeholder="Unit" width="70px" />
+        <Field value={form.due} onChange={(v) => setForm({ ...form, due: v })} placeholder="Due" width="100px" />
+        <button className="btn" onClick={addGoal}>Add goal</button>
+      </div>
+    </div>
+  );
+}
+
+function BudgetSection({ budget, persist, all }) {
+  const [form, setForm] = useState({ name: "", budget: "", spent: "" });
+
+  const totalBudget = budget.categories.reduce((s, c) => s + c.budget, 0);
+  const totalSpent = budget.categories.reduce((s, c) => s + c.spent, 0);
+  const remaining = budget.income - totalSpent;
+
+  const updateSpent = (id, delta) => {
+    const next = budget.categories.map((c) =>
+      c.id === id ? { ...c, spent: Math.max(0, +(c.spent + delta).toFixed(2)) } : c
+    );
+    persist({ ...all, budget: { ...budget, categories: next } });
+  };
+
+  const removeCat = (id) =>
+    persist({ ...all, budget: { ...budget, categories: budget.categories.filter((c) => c.id !== id) } });
+
+  const addCat = () => {
+    if (!form.name.trim() || !form.budget) return;
+    const next = [
+      ...budget.categories,
+      { id: "b" + Date.now(), name: form.name.trim(), budget: +form.budget, spent: +form.spent || 0 },
+    ];
+    persist({ ...all, budget: { ...budget, categories: next } });
+    setForm({ name: "", budget: "", spent: "" });
+  };
+
+  return (
+    <div className="panel">
+      <div className="panel-head">
+        <h2>Monthly budget</h2>
+        <span className="eyebrow mono">income ${budget.income.toLocaleString()}</span>
+      </div>
+
+      <div className="budget-summary">
+        <div className="sum-item">
+          <div className="sum-label">Spent</div>
+          <div className="sum-value mono">${totalSpent.toLocaleString()}</div>
+        </div>
+        <div className="sum-item">
+          <div className="sum-label">Budgeted</div>
+          <div className="sum-value mono">${totalBudget.toLocaleString()}</div>
+        </div>
+        <div className="sum-item">
+          <div className="sum-label">{remaining >= 0 ? "Left over" : "Over"}</div>
+          <div className={"sum-value mono " + (remaining < 0 ? "alert" : "")}>
+            ${Math.abs(remaining).toLocaleString()}
+          </div>
+        </div>
+      </div>
+
+      <div className="cat-list">
+        {budget.categories.map((c) => {
+          const over = c.spent > c.budget;
+          const pct = c.budget > 0 ? Math.min(1, c.spent / c.budget) : 0;
+          return (
+            <div className="cat-row" key={c.id}>
+              <div className="cat-name">{c.name}</div>
+              <div className="cat-bar-track">
+                <div className={"cat-bar-fill " + (over ? "over" : "")} style={{ width: `${pct * 100}%` }} />
+              </div>
+              <div className={"cat-nums mono " + (over ? "alert" : "")}>
+                ${c.spent} / ${c.budget}
+              </div>
+              <div className="cat-actions">
+                <button className="btn small" onClick={() => updateSpent(c.id, -10)}>−10</button>
+                <button className="btn small" onClick={() => updateSpent(c.id, 10)}>+10</button>
+                <button className="ghost-x" onClick={() => removeCat(c.id)}>remove</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="add-row wrap">
+        <Field value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="Category" width="140px" />
+        <Field value={form.budget} onChange={(v) => setForm({ ...form, budget: v })} placeholder="Budget $" width="90px" />
+        <Field value={form.spent} onChange={(v) => setForm({ ...form, spent: v })} placeholder="Spent $" width="90px" />
+        <button className="btn" onClick={addCat}>Add category</button>
+      </div>
+    </div>
+  );
+}
+
+function SupplementsSection({ supplements, persist, all }) {
+  const [form, setForm] = useState({ name: "", time: "AM" });
+
+  const toggle = (id) => {
+    const next = supplements.map((s) => (s.id === id ? { ...s, taken: !s.taken } : s));
+    persist({ ...all, supplements: next });
+  };
+
+  const remove = (id) => persist({ ...all, supplements: supplements.filter((s) => s.id !== id) });
+
+  const add = () => {
+    if (!form.name.trim()) return;
+    const next = [...supplements, { id: "s" + Date.now(), name: form.name.trim(), time: form.time, taken: false }];
+    persist({ ...all, supplements: next });
+    setForm({ name: "", time: "AM" });
+  };
+
+  const am = supplements.filter((s) => s.time === "AM");
+  const pm = supplements.filter((s) => s.time === "PM");
+
+  const Group = ({ label, items }) => (
+    <div className="supp-group">
+      <div className="supp-group-label">{label}</div>
+      {items.length === 0 && <div className="empty">nothing scheduled</div>}
+      {items.map((s) => (
+        <div className="supp-row" key={s.id}>
+          <Punch checked={s.taken} onClick={() => toggle(s.id)} tone="var(--coral)" />
+          <span className={s.taken ? "supp-name taken" : "supp-name"}>{s.name}</span>
+          <button className="ghost-x" onClick={() => remove(s.id)}>×</button>
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="panel">
+      <div className="panel-head">
+        <h2>Today's supplements</h2>
+        <span className="eyebrow">{supplements.filter((s) => s.taken).length}/{supplements.length} taken</span>
+      </div>
+
+      <div className="supp-groups">
+        <Group label="Morning" items={am} />
+        <Group label="Evening" items={pm} />
+      </div>
+
+      <div className="add-row">
+        <Field value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="e.g. Zinc" width="160px" />
+        <select className="field select" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })}>
+          <option value="AM">AM</option>
+          <option value="PM">PM</option>
+        </select>
+        <button className="btn" onClick={add}>Add</button>
+      </div>
+    </div>
+  );
+}
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function fmtDate(iso) {
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function WeightChart({ entries, goal }) {
+  const w = 560, h = 140, pad = 24;
+  const sorted = [...entries].sort((a, b) => (a.date < b.date ? -1 : 1));
+  const vals = sorted.map((e) => e.value);
+  const lo = Math.min(...vals, goal) - 1;
+  const hi = Math.max(...vals, goal) + 1;
+  const x = (i) => pad + (i / Math.max(1, sorted.length - 1)) * (w - pad * 2);
+  const y = (v) => h - pad - ((v - lo) / (hi - lo)) * (h - pad * 2);
+  const path = sorted.map((e, i) => `${i === 0 ? "M" : "L"} ${x(i)} ${y(e.value)}`).join(" ");
+  const goalY = y(goal);
+
+  return (
+    <svg width="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet">
+      <line x1={pad} y1={goalY} x2={w - pad} y2={goalY} stroke="var(--mustard)" strokeDasharray="4 4" strokeWidth="1.5" />
+      <text x={w - pad} y={goalY - 6} textAnchor="end" fontSize="10" fill="var(--mustard)" fontFamily="JetBrains Mono, monospace">
+        goal {goal}
+      </text>
+      <path d={path} fill="none" stroke="var(--teal)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      {sorted.map((e, i) => (
+        <circle key={e.id} cx={x(i)} cy={y(e.value)} r="3.5" fill="var(--paper)" stroke="var(--teal)" strokeWidth="2" />
+      ))}
+    </svg>
+  );
+}
+
+function WeightSection({ weight, persist, all }) {
+  const [val, setVal] = useState("");
+  const sorted = [...weight.entries].sort((a, b) => (a.date < b.date ? -1 : 1));
+  const latest = sorted[sorted.length - 1];
+  const first = sorted[0];
+  const toGoal = latest ? +(latest.value - weight.goal).toFixed(1) : 0;
+  const totalChange = latest && first ? +(latest.value - first.value).toFixed(1) : 0;
+
+  const logToday = () => {
+    if (!val || isNaN(+val)) return;
+    const iso = todayISO();
+    const existing = weight.entries.find((e) => e.date === iso);
+    const next = existing
+      ? weight.entries.map((e) => (e.date === iso ? { ...e, value: +val } : e))
+      : [...weight.entries, { id: "w" + Date.now(), date: iso, value: +val }];
+    persist({ ...all, weight: { ...weight, entries: next } });
+    setVal("");
+  };
+
+  const removeEntry = (id) =>
+    persist({ ...all, weight: { ...weight, entries: weight.entries.filter((e) => e.id !== id) } });
+
+  const setGoal = (g) => {
+    if (!g || isNaN(+g)) return;
+    persist({ ...all, weight: { ...weight, goal: +g } });
+  };
+
+  return (
+    <div className="panel">
+      <div className="panel-head">
+        <h2>Weight trend</h2>
+        <span className="eyebrow mono">{weight.unit}</span>
+      </div>
+
+      <div className="budget-summary">
+        <div className="sum-item">
+          <div className="sum-label">Latest</div>
+          <div className="sum-value mono">{latest ? latest.value : "—"}</div>
+        </div>
+        <div className="sum-item">
+          <div className="sum-label">To goal</div>
+          <div className={"sum-value mono " + (toGoal > 0 ? "alert" : "")}>
+            {toGoal > 0 ? "+" : ""}{toGoal}
+          </div>
+        </div>
+        <div className="sum-item">
+          <div className="sum-label">Since first log</div>
+          <div className="sum-value mono">{totalChange > 0 ? "+" : ""}{totalChange}</div>
+        </div>
+      </div>
+
+      <WeightChart entries={weight.entries} goal={weight.goal} />
+
+      <div className="weight-list">
+        {sorted.slice(-6).reverse().map((e) => (
+          <div className="weight-row mono" key={e.id}>
+            <span>{fmtDate(e.date)}</span>
+            <span>{e.value} {weight.unit}</span>
+            <button className="ghost-x" onClick={() => removeEntry(e.id)}>×</button>
+          </div>
+        ))}
+      </div>
+
+      <div className="add-row wrap">
+        <Field value={val} onChange={setVal} placeholder={`Today's weight (${weight.unit})`} width="160px" type="number" />
+        <button className="btn" onClick={logToday}>Log today</button>
+        <Field value={weight.goal} onChange={setGoal} placeholder="Goal" width="80px" type="number" />
+      </div>
+    </div>
+  );
+}
+
+function SummarySection({ data }) {
+  const habitTotal = data.habits.reduce((s, h) => s + h.days.filter(Boolean).length, 0);
+  const habitPossible = data.habits.length * 7;
+  const habitPct = habitPossible ? habitTotal / habitPossible : 0;
+  const bestHabit = [...data.habits].sort(
+    (a, b) => b.days.filter(Boolean).length - a.days.filter(Boolean).length
+  )[0];
+
+  const goalPcts = data.goals.map((g) => (g.target > 0 ? Math.min(1, g.current / g.target) : 0));
+  const goalAvg = goalPcts.length ? goalPcts.reduce((a, b) => a + b, 0) / goalPcts.length : 0;
+  const closestGoal = data.goals.length
+    ? data.goals[goalPcts.indexOf(Math.max(...goalPcts))]
+    : null;
+
+  const totalSpent = data.budget.categories.reduce((s, c) => s + c.spent, 0);
+  const totalBudget = data.budget.categories.reduce((s, c) => s + c.budget, 0);
+  const overCats = data.budget.categories.filter((c) => c.spent > c.budget);
+  const remaining = data.budget.income - totalSpent;
+
+  const suppPct = data.supplements.length
+    ? data.supplements.filter((s) => s.taken).length / data.supplements.length
+    : 0;
+
+  const wSorted = [...data.weight.entries].sort((a, b) => (a.date < b.date ? -1 : 1));
+  const wChange = wSorted.length > 1 ? +(wSorted[wSorted.length - 1].value - wSorted[0].value).toFixed(1) : 0;
+  let wPct = 0;
+  if (wSorted.length) {
+    const startDist = Math.abs(wSorted[0].value - data.weight.goal);
+    const nowDist = Math.abs(wSorted[wSorted.length - 1].value - data.weight.goal);
+    wPct = startDist < 0.1 ? 1 : Math.max(0, Math.min(1, (startDist - nowDist) / startDist));
+  }
+
+  return (
+    <div className="panel">
+      <div className="panel-head">
+        <h2>Weekly summary</h2>
+        <span className="eyebrow">how the week's shaping up</span>
+      </div>
+
+      <div className="summary-grid">
+        <div className="summary-card">
+          <Ring pct={habitPct} size={52} stroke={5} />
+          <div>
+            <div className="summary-title">Habits</div>
+            <div className="summary-detail mono">{habitTotal}/{habitPossible} logged</div>
+            {bestHabit && <div className="summary-detail">strongest: {bestHabit.name}</div>}
+          </div>
+        </div>
+
+        <div className="summary-card">
+          <Ring pct={goalAvg} size={52} stroke={5} color="var(--mustard)" />
+          <div>
+            <div className="summary-title">Goals</div>
+            <div className="summary-detail mono">{Math.round(goalAvg * 100)}% avg progress</div>
+            {closestGoal && <div className="summary-detail">closest: {closestGoal.name}</div>}
+          </div>
+        </div>
+
+        <div className="summary-card">
+          <Ring pct={totalBudget ? Math.min(1, totalSpent / totalBudget) : 0} size={52} stroke={5} color={remaining < 0 ? "var(--coral)" : "var(--teal)"} />
+          <div>
+            <div className="summary-title">Budget</div>
+            <div className="summary-detail mono">${totalSpent.toLocaleString()} of ${totalBudget.toLocaleString()}</div>
+            <div className="summary-detail">
+              {overCats.length ? `${overCats.length} categor${overCats.length > 1 ? "ies" : "y"} over` : "all within budget"}
+            </div>
+          </div>
+        </div>
+
+        <div className="summary-card">
+          <Ring pct={suppPct} size={52} stroke={5} color="var(--coral)" />
+          <div>
+            <div className="summary-title">Supplements</div>
+            <div className="summary-detail mono">{Math.round(suppPct * 100)}% taken today</div>
+          </div>
+        </div>
+
+        <div className="summary-card">
+          <Ring pct={wPct} size={52} stroke={5} />
+          <div>
+            <div className="summary-title">Weight</div>
+            <div className="summary-detail mono">
+              {wSorted.length ? `${wSorted[wSorted.length - 1].value} ${data.weight.unit}` : "no logs yet"}
+            </div>
+            {wSorted.length > 1 && (
+              <div className="summary-detail">{wChange <= 0 ? wChange : "+" + wChange} {data.weight.unit} this stretch</div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Dashboard() {
+  const { data, loaded, persist } = useDashboardData();
+  const [tab, setTab] = useState("summary");
+
+  const today = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+
+  if (!loaded || !data) {
+    return (
+      <div className="dash-root loading">
+        <div className="mono">loading dashboard…</div>
+      </div>
+    );
+  }
+
+  const habitPct = data.habits.length
+    ? data.habits.reduce((s, h) => s + (h.days[h.days.length - 1] ? 1 : 0), 0) / data.habits.length
+    : 0;
+  const suppPct = data.supplements.length
+    ? data.supplements.filter((s) => s.taken).length / data.supplements.length
+    : 0;
+
+  return (
+    <div className="dash-root">
+      <div className="masthead">
+        <div>
+          <div className="brand">Daybook</div>
+          <div className="date mono">{today}</div>
+        </div>
+        <div className="masthead-rings">
+          <div className="mini-ring">
+            <Ring pct={habitPct} size={44} stroke={5} />
+            <span className="mono">today</span>
+          </div>
+          <div className="mini-ring">
+            <Ring pct={suppPct} size={44} stroke={5} color="var(--coral)" />
+            <span className="mono">supp.</span>
+          </div>
+        </div>
+      </div>
+
+      <nav className="tabs">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            className={"tab" + (tab === t.key ? " active" : "")}
+            onClick={() => setTab(t.key)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </nav>
+
+      <div className="content">
+        {tab === "summary" && <SummarySection data={data} />}
+        {tab === "habits" && <HabitsSection habits={data.habits} persist={persist} all={data} />}
+        {tab === "goals" && <GoalsSection goals={data.goals} persist={persist} all={data} />}
+        {tab === "budget" && <BudgetSection budget={data.budget} persist={persist} all={data} />}
+        {tab === "supplements" && <SupplementsSection supplements={data.supplements} persist={persist} all={data} />}
+        {tab === "weight" && <WeightSection weight={data.weight} persist={persist} all={data} />}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<Dashboard />);
+</script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>
