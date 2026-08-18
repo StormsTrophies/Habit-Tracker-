@@ -1,0 +1,19 @@
+{
+  "name": "Daybook — Personal Dashboard",
+  "short_name": "Daybook",
+  "description": "Track habits, goals, budget, supplements, and weight in one place.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#E8E4D8",
+  "theme_color": "#3D6B63",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
